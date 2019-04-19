@@ -142,27 +142,6 @@ def HSLImage (BGRImage,modifiedtags):
     light_pink = (Hue >= 310 ) & (Hue <340 ) & (Sat >=0.2) & (Sat<=1 ) & (Light >= 0.5) & (Light < 0.875) #19
     light_pinkCount = np.sum(light_pink.astype('int')) / totalPixels
    
-       
-#    ColorsMat[black] = 1
-#    ColorsMat[white] = 2
-#    ColorsMat[dark_gray] = 3
-#    ColorsMat[light_gray] = 4
-#    ColorsMat[dark_red] = 5
-#    ColorsMat[light_red] = 6
-#    ColorsMat[brown] = 7
-#    ColorsMat[light_orange] = 8
-#    ColorsMat[dark_yellow] = 9
-#    ColorsMat[light_yellow] = 10
-#    ColorsMat[dark_green] = 11
-#    ColorsMat[light_green] = 12
-#    ColorsMat[dark_cyan] = 13
-#    ColorsMat[light_cyan] = 14
-#    ColorsMat[dark_blue] = 15
-#    ColorsMat[light_blue] = 16
-#    ColorsMat[dark_purple] = 17
-#    ColorsMat[light_purple] = 18
-#    ColorsMat[dark_pink] = 19
-#    ColorsMat[light_pink] = 20
     
     ColorsMat[black] = 1
     ColorsMat[white] = 2
@@ -182,13 +161,9 @@ def HSLImage (BGRImage,modifiedtags):
                              'Green','Cyan','Blue','Purple',
                              'Pink'])
     
-    #osama
-    #black
-    #white
+    #colors counts
     grayCount=dark_grayCount+light_grayCount
     redCount=dark_redCount+light_redCount
-    #brown
-    #orange
     yellowCount=dark_yellowCount+light_yellowCount
     greenCount=dark_greenCount+light_greenCount
     cyanCount=dark_cyanCount+light_cyanCount
@@ -196,28 +171,17 @@ def HSLImage (BGRImage,modifiedtags):
     purpleCount=dark_purpleCount+light_purpleCount
     pinkCount=dark_pinkCount+light_pinkCount
     
-    
     ColorsRatios = np.array([0,blackCount,whiteCount,grayCount,
                              redCount,brownCount,light_orangeCount,yellowCount,
                              greenCount,cyanCount,blueCount,purpleCount,
                              pinkCount])
-    
-    
+     
     colors = [ColorsLabels[i] for i in np.unique(ColorsMat)]
     colors.remove('null')
     frequencies = [ColorsRatios[i] for i in np.unique(ColorsMat)]
     frequencies.remove(0)
-    #x = list(zip(colors,frequencies))
-    #print(x)
+
     return colors, frequencies
-
-
-
-
-
-
-
-
 
 def getImageColors(image,matPixelLevel,labelsList,discardedTags,colorsThreshold,colors_no=1):
     imageColors = []
@@ -228,33 +192,28 @@ def getImageColors(image,matPixelLevel,labelsList,discardedTags,colorsThreshold,
     uniqueTags = np.unique(tags)
     for tag in uniqueTags:
         pieceLabel = labelsList[tag]
-#        print(pieceLabel)
         if(tag in discardedTags):
             continue
         modifiedtags[tags == tag] = 255
         modifiedtags[tags != tag] = 0
-#        show_images([modifiedtags],['segmented image'])
         newSegmentedImg = np.zeros((modifiedtags.shape[0],modifiedtags.shape[1],3),np.uint8)
         newSegmentedImg[:,:,0] = modifiedtags
         newSegmentedImg[:,:,1] = modifiedtags
         newSegmentedImg[:,:,2] = modifiedtags
     
         newImage = np.bitwise_and(newSegmentedImg.astype('uint8'), image.astype('uint8'))
-#        show_images([BGR2RGB(newImage)],['final image'])
         pieceColors,colorsFrequencies = HSLImage(newImage,modifiedtags)
 
         pieceColors=np.array(pieceColors)
         colorsFrequencies=np.array(colorsFrequencies)
         
-        #osama to be checked
+        #get max color frequencies
         max_colors_no=np.argsort(colorsFrequencies)[-colors_no:]
         pieceColors=pieceColors[max_colors_no]
-        
         colorsFrequencies=colorsFrequencies[max_colors_no]
         
         thresholdedColors =  pieceColors[colorsFrequencies>0.1]
         thresholdedFreq = colorsFrequencies[colorsFrequencies>0.1]
-#        print(thresholdedColors,thresholdedFreq)
         writer.writerows([{"piece": pieceLabel, "colors": thresholdedColors}])
         pieceColors = ''
         for color in thresholdedColors:
@@ -268,7 +227,8 @@ def getImageColors(image,matPixelLevel,labelsList,discardedTags,colorsThreshold,
 
 
 
-def fetchDS(img_dir,label_dir,csv_file,categories,discarded_tags,colors_threshold,ds_type,colors_no=2):
+def fetchDS(img_dir,label_dir,csv_file,categories,discarded_tags,
+            colors_threshold,ds_type,colors_no=2,colors_only=0):
     data_path = os.path.join(img_dir,'*g')
     imgs = glob.glob(data_path)
     print("NEWWWW############################################################################ ")
@@ -283,17 +243,17 @@ def fetchDS(img_dir,label_dir,csv_file,categories,discarded_tags,colors_threshol
         
         #call function extract colors with pieces
         items=getImageColors(img,mat_label,categories,discarded_tags,colors_threshold,colors_no)
-        items=' '.join(items)     
+        if(colors_only == 1):
+            items=set([it.split('-')[0] for it in items])                      
+        items=' '.join(items)    
         with open(csv_file, 'a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([items])
         count=count+1
         print("img no:",count)
     return 
-  
 
 #fetching data sets
-
 #CFPD    
 with open('I:\\4th year\\2nd sem\\gp\\CFPD\\categories.csv', 'r') as f:
   reader = csv.reader(f)
@@ -303,48 +263,18 @@ with open('I:\\4th year\\2nd sem\\gp\\CFPD\\categories.csv', 'r') as f:
   categs[12]=categs[12]+'s'
   categs[15]=categs[15]+'s'
   categs[20]=categs[20]+'s'
-
 discarded_tags=[0,8,9,10,17,21]
 fetchDS('I:\\4th year\\2nd sem\\gp\\CFPD\\image',
         'I:\\4th year\\2nd sem\\gp\\CFPD\\img-labels',
-        'Pieces_Stats_1color.csv',categs,discarded_tags,
-        colors_threshold=0.15,ds_type=0,colors_no=1)
+        'Pieces_Stats_Colors_Only.csv',categs,discarded_tags,
+        colors_threshold=0.15,ds_type=0,colors_no=1,colors_only=1)
 
-#    ColorsFile.close()    
-#    Inputlines = []
-#    with open('ColorsFile.csv', 'r') as input:
-#        Inputlines = input.readlines()
-#    conversion1 = "[']"
-#    newtext1 = ''
-#    outputLines = []
-#    for line in Inputlines:
-#        temp = line[:]
-#        for c in conversion1:
-#            temp = temp.replace(c, newtext1)
-#        outputLines.append(temp)
-#    with open('ColorsFileProcessed.csv', 'w') as output:
-#        for line in outputLines:
-#            if line:
-#                output.write(line)
-    
-
-
-#CCP    
-#matPixelLevel = scipy.io.loadmat('./annotations/pixel-level/0004.mat')  #dictionary
-#image = cv2.imread('./photos/0004.jpg', cv2.IMREAD_COLOR)
-
-#bayzaa 3ayzin nesheel elcaategs elly msh mazboota
+#CCP
 discarded_tags = [0,1,8,9,15,17,18,19,20,23,29,30,34,41,47,56,57]
-
 labelsList = loadmat('label_list.mat').get('label_list')[0]
 categs=[''.join(x) for x in labelsList]
+fetchDS('photos','annotations\pixel-level','Pieces_Stats_Colors_Only.csv'
+        ,categs,discarded_tags,colors_threshold=0.15,ds_type=1,
+        colors_no=1,colors_only=1)
 
-fetchDS('photos','annotations\pixel-level','Pieces_Stats_1color.csv'
-        ,categs,discarded_tags,colors_threshold=0.15,ds_type=1,colors_no=1)
-#print(labelsList)
-#with open('labels.csv', 'r') as labelsFile:
-#    reader = csv.reader(labelsFile)
-#    for row in reader:
-#        if row!= [] :
-#            labelsList.append(row[0])
 
